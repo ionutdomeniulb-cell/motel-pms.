@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Autentificare în 2 pași · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="panel twofa">
+{% if mode == 'setup' %}
+  <p class="eyebrow">AUTENTIFICARE ÎN 2 PAȘI · CONFIGURARE</p><h1>Legați contul de telefon</h1>
+  <ol class="twofa-steps">
+    <li>Instalați pe telefon <b>Google Authenticator</b> sau <b>Microsoft Authenticator</b>.</li>
+    <li>În aplicație: „+” → <b>Introduceți o cheie de configurare</b>. Nume: <b>PMS Popas</b>; cheia:<div class="twofa-secret">{{ secret }}</div>Tip: bazat pe timp.</li>
+    <li>Pe telefonul pe care îl folosiți acum puteți apăsa și: <a href="{{ uri }}">deschide în aplicația de autentificare</a>.</li>
+    <li>Introduceți mai jos codul de 6 cifre afișat de aplicație.</li>
+  </ol>
+{% elif mode == 'codes' %}
+  <p class="eyebrow">AUTENTIFICARE ÎN 2 PAȘI · ACTIVATĂ</p><h1>Coduri de rezervă</h1>
+  <p>Notați aceste coduri pe hârtie și păstrați-le într-un loc sigur. Fiecare se poate folosi <b>o singură dată</b>, dacă nu aveți telefonul. Nu vor mai fi afișate.</p>
+  <div class="twofa-codes">{% for c in codes %}<code>{{ c }}</code>{% endfor %}</div>
+  <p><a class="button primary" href="{{ url_for('index') }}">Am notat codurile · continuă</a></p>
+{% else %}
+  <p class="eyebrow">AUTENTIFICARE ÎN 2 PAȘI</p><h1>Introduceți codul</h1>
+  <p class="muted">Codul de 6 cifre din aplicația de autentificare. Fără telefon: un cod de rezervă (de forma 1234-5678).</p>
+{% endif %}
+{% if mode != 'codes' %}
+  <form method="post" class="twofa-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="9" required autofocus placeholder="123456" aria-label="Cod">
+    <button class="primary" type="submit">{{ 'Activează' if mode == 'setup' else 'Confirmă' }}</button>
+  </form>
+{% endif %}
+</section>
+{% endblock %}

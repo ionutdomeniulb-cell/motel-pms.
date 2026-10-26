@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Rezervare nouă' if mode=='new' else 'Editare rezervare' }} · Motel PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">GESTIONARE CAZARE</p><h1>{{ 'Rezervare nouă' if mode=='new' else 'Editare rezervare #' ~ booking_id }}</h1><p class="muted">Disponibilitatea este verificată din nou la salvare.</p></div><a class="secondary" href="{{ url_for('index', start=calendar_start or data.check_in) }}">← Înapoi la calendar ({{ calendar_start or data.check_in }})</a></section>
+<form class="panel booking-form" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Date client</h2>
+  <div class="form-grid">
+    <label class="wide">Nume client *<input name="guest_name" list="guest-name-suggestions" autocomplete="off" required value="{{ data.guest_name }}" placeholder="Începeți să scrieți numele și prenumele"><datalist id="guest-name-suggestions"></datalist><small class="field-hint">Sugestii din rezervările anterioare apar pe măsură ce tastați.</small></label>
+    <label>Telefon<input name="phone" value="{{ data.phone }}" placeholder="07xx xxx xxx"></label>
+    <label>Email<input type="email" name="email" value="{{ data.email }}" placeholder="email@exemplu.ro"></label>
+  </div>
+  <h2>Detalii sejur</h2>
+  <div class="form-grid">
+    <label>Cameră *<select name="room_id" required><option value="">Selectați mai întâi perioada</option></select><small class="field-hint">Sunt afișate numai camerele disponibile pentru întregul sejur, grupate pe corpuri A, B și C.</small></label>
+    <label>Număr persoane în cameră <span class="req" aria-hidden="true">*</span><select name="guests" required><option value="" disabled {% if not data.guests %}selected{% endif %}>Alegeți…</option><option value="1" {% if data.guests|string == '1' %}selected{% endif %}>1 persoană</option><option value="2" {% if data.guests|string == '2' %}selected{% endif %}>2 persoane</option></select><small class="field-hint">Câmp obligatoriu. Maximum 2 persoane per cameră.</small></label>
+    <label>Data sosirii *<input type="date" name="check_in" value="{{ data.check_in }}" required></label>
+    <label>Data plecării *<input type="date" name="check_out" value="{{ data.check_out }}" required></label>
+    <label>Sursa rezervării<select name="source">{% for s in ['Direct','Telefon','WhatsApp','Website','Booking.com','Expedia','Altă platformă','Agenție','Recepție noapte'] %}<option {% if data.source==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+    <label>Status<select name="status">{% for val,label in [('provisional','Provizorie'),('confirmed','Confirmată'),('unconfirmed','Neconfirmată'),('checked_in','Cazat'),('checked_out','Plecat')] %}<option value="{{ val }}" {% if data.status==val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  </div>
+  <h2>Tarif și încasări</h2>
+  <div class="form-grid">
+    <label>Tarif / noapte (lei) *<input type="number" name="rate" min="0.01" step="0.01" value="{{ data.rate }}" required><small class="field-hint">Obligatoriu pentru rezervări și statistici corecte.</small></label>
+    <label>Avans încasat (lei)<input type="number" name="deposit" min="0" step="0.01" value="{{ data.deposit }}" required></label>
+    <fieldset class="night-fields wide"><legend>Recepție de noapte</legend>
+      <label class="check-row"><input type="checkbox" name="late_arrival" value="1" {% if data.late_arrival %}checked{% endif %}> Sosește după ora 21:00 (după încheierea programului recepției)</label>
+      <label>Observații pentru recepția de noapte<textarea name="night_note" rows="2" maxlength="300" placeholder="Ex.: cheia este la... , vine cu mașina...">{{ data.night_note or '' }}</textarea><small class="field-hint">Doar pentru sosiri după ora 21:00. Recepția de noapte va vedea numele, telefonul și această observație.</small></label>
+    </fieldset>
+    <label class="wide">Observații<textarea name="notes" rows="3" placeholder="Solicitări speciale, detalii de sosire...">{{ data.notes }}</textarea></label>
+    {% if data.group_id %}<label class="wide">Număr chitanță <input name="receipt_number" value="{{ data.receipt_number or '' }}" placeholder="Introduceți numărul chitanței"><small class="field-hint">La salvare veți putea alege dacă chitanța și confirmarea se aplică întregului grup.</small></label><input type="hidden" name="apply_to_group" value="0">{% endif %}
+  </div>
+  <div class="form-note"><span>🛡️</span><p><b>Protecție anti-overbooking activă</b><br>Rezervarea nu va fi salvată dacă aceeași cameră este ocupată în oricare dintre nopțile selectate sau dacă depășește capacitatea de 2 persoane.</p></div>
+  <div class="form-actions"><a class="secondary" href="{{ url_for('index', start=calendar_start or data.check_in) }}">Renunță</a><button class="primary" type="submit">Salvează rezervarea</button></div>
+</form>
+{% if mode=='edit' %}
+{% if mods.mod_reconfirm and data.source == 'Direct' and data.check_in == today_iso and not data.group_id and data.status not in ['cancelled','checked_in','checked_out'] %}<form method="post" action="{{ url_for('reconfirm_booking', booking_id=booking_id) }}" class="cancel-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary" type="submit">Reconfirmă rezervarea pentru astăzi</button><p class="hint">Rezervările directe pentru sosire astăzi trebuie reconfirmate până la ora 20:30.</p></form>{% endif %}
+{% if data.group_id and group_bookings %}
+{% set active_group = group_bookings|rejectattr('status','equalto','cancelled')|list %}
+<section class="panel group-cancel-panel" id="groupPanel">
+  <h2>Rezervare de grup · {{ active_group|length }} camere active</h2>
+  <p class="muted">Bifați camerele pe care doriți să le anulați sau anulați tot grupul. Nimic nu se anulează fără o confirmare în fereastra care apare.</p>
+  <form method="post" action="{{ url_for('cancel_booking_group', group_id=data.group_id) }}" data-group-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="scope" value=""><input type="hidden" name="confirmed" value="">
+    <div class="group-cancel-rooms">
+    {% for gb in group_bookings %}
+      <label class="group-room{% if gb.status == 'cancelled' %} is-cancelled{% endif %}"><input type="checkbox" name="booking_ids" value="{{ gb.id }}" data-room="{{ gb.room_name }}" {% if gb.status == 'cancelled' %}disabled{% endif %}> <span>Camera {{ gb.room_name }} · {{ {'provisional':'Provizorie','confirmed':'Confirmată','unconfirmed':'Neconfirmată','checked_in':'Cazat','checked_out':'Plecat','cancelled':'Anulată'}.get(gb.status,gb.status) }}</span></label>
+    {% endfor %}
+    </div>
+    <div class="form-actions group-actions">
+      <button class="danger" type="button" data-group-action="selected" disabled>Anulează camerele bifate (<span data-count>0</span>)</button>
+      <button class="danger outline" type="button" data-group-action="all">Anulează tot grupul</button>
+    </div>
+  </form>
+  <dialog id="groupConfirm" class="confirm-dialog" aria-labelledby="groupConfirmTitle">
+    <form method="dialog">
+      <h3 id="groupConfirmTitle" data-title></h3>
+      <p data-body></p>
+      <ul class="confirm-rooms" data-rooms></ul>
+      <div class="form-actions"><button class="secondary" value="cancel">Renunță</button><button class="danger" value="ok">Da, anulează</button></div>
+    </form>
+  </dialog>
+</section>
+{% endif %}
+<form method="post" action="{{ url_for('cancel_booking', booking_id=booking_id) }}" class="cancel-form" data-confirm="Sigur doriți să anulați doar această rezervare?"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="danger">Anulează doar această rezervare</button></form>
+<section class="panel invoice-panel"><div><p class="eyebrow">INTEGRARE OBLIO · MEDIU DE TEST</p><h2>Facturare</h2><p class="muted">Simulează înregistrarea unei facturi și verifică protecția împotriva duplicatelor. Nu trimite cereri către Oblio și nu emite document fiscal.</p></div><form method="post" action="{{ url_for('oblio_test_invoice', booking_id=booking_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary" type="submit">Testează emiterea facturii</button></form></section>
+{% endif %}
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const form = document.querySelector('form.booking-form');
+  if (!form) return;
+  const startInput = form.querySelector('input[name="check_in"]');
+  const endInput = form.querySelector('input[name="check_out"]');
+  const roomSelect = form.querySelector('select[name="room_id"]');
+  const selectedAtLoad = {{ data.room_id|default('', true)|tojson }};
+  const availabilityUrl = {{ url_for('available_rooms')|tojson }};
+  const bookingId = {{ data.id|default(none)|tojson }};
+  const groupId = {{ data.group_id|default(none)|tojson }};
+  let firstLoad = true;
+
+  async function refreshRooms() {
+    const previous = roomSelect.value || (firstLoad ? String(selectedAtLoad || '') : '');
+    roomSelect.replaceChildren(new Option('Se verifică disponibilitatea…', ''));
+    if (!startInput.value || !endInput.value || endInput.value <= startInput.value) {
+      roomSelect.replaceChildren(new Option('Selectați o perioadă validă', ''));
+      return;
+    }
+    try {
+      const params = new URLSearchParams({start: startInput.value, end: endInput.value});
+      if (bookingId) params.set('exclude_booking_id', bookingId);
+      const response = await fetch(`${availabilityUrl}?${params.toString()}`, {headers: {'Accept': 'application/json'}});
+      const type = response.headers.get('content-type') || '';
+      if (!type.includes('application/json')) throw new Error('Nu s-a putut verifica disponibilitatea. Reautentificați-vă și reîncărcați pagina.');
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Eroare la verificarea camerelor.');
+      roomSelect.replaceChildren(new Option(payload.rooms.length ? 'Selectați camera' : 'Nu există camere disponibile', ''));
+      ['Corp A', 'Corp B', 'Corp C'].forEach(building => {
+        const rooms = payload.rooms.filter(room => room.building === building);
+        if (!rooms.length) return;
+        const group = document.createElement('optgroup'); group.label = `${building} (${rooms.length})`;
+        rooms.forEach(room => {
+          const option = new Option(`Camera ${room.name} · ${room.bed_configuration} · ${room.bathroom_type}`, String(room.id));
+          group.append(option);
+        });
+        roomSelect.append(group);
+      });
+      if ([...roomSelect.options].some(option => option.value === String(previous))) roomSelect.value = String(previous);
+      firstLoad = false;
+    } catch (error) {
+      roomSelect.replaceChildren(new Option(error.message || 'Eroare la încărcarea camerelor', ''));
+    }
+  }
+  startInput.addEventListener('change', refreshRooms);
+  endInput.addEventListener('change', refreshRooms);
+  refreshRooms();
+
+  if (groupId) {
+    form.addEventListener('submit', event => {
+      const receipt = form.querySelector('input[name="receipt_number"]');
+      const status = form.querySelector('select[name="status"]');
+      const apply = form.querySelector('input[name="apply_to_group"]');
+      if (!receipt || !receipt.value.trim()) return;
+      const applyAll = confirm('Aplicați această chitanță întregului grup și confirmați toate camerele?\n\nOK = confirmă întregul grup.\nAnulare = salvează doar această cameră, fără a modifica restul grupului.');
+      if (applyAll) {
+        apply.value = '1';
+        if (status) status.value = 'confirmed';
+      } else {
+        apply.value = '0';
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

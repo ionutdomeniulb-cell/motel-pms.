@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Autentificare · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="auth-wrap"><form method="post" class="panel auth-panel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><p class="eyebrow">ACCES SECURIZAT</p><h1>Autentificare</h1><p class="muted">Introduceți utilizatorul și PIN-ul personal.</p><label>Utilizator<input name="username" autocomplete="username" required autofocus></label><label>PIN (6–8 cifre)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" autocomplete="current-password" required></label><button class="primary" type="submit">Intră în aplicație</button></form></section>
+{% endblock %}

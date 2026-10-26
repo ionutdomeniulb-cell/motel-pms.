@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Rapoarte curățenie extinsă · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">CURĂȚENIE EXTINSĂ · RAPOARTE</p><h1>Săptămâna de la {{ week|dmy }}</h1><p class="muted">Trimise de cameriste: <b>{{ sent }}/{{ rooms|length }}</b> camere.</p></div>
+<div class="date-nav"><a class="button secondary" href="{{ url_for('deep_clean_reports', week=prev_week) }}">← Anterioară</a>{% if not is_current %}<a class="button secondary" href="{{ url_for('deep_clean_reports', week=next_week) }}">Următoarea →</a>{% endif %}</div></section>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Cameră</th><th>Stare</th><th>Puncte</th><th>Neefectuate</th><th>Observații</th><th>Cine / când</th></tr></thead><tbody>
+{% for room in rooms %}{% set r = reports.get(room.id) %}<tr>
+  <td><b>{{ room.name }}</b><small class="subline">{{ room.building }}</small></td>
+  <td>{% if r and r.status == 'sent' %}<span class="status confirmed">Trimis</span>{% elif r %}<span class="status provisional">Ciornă</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+  <td>{% if r %}{{ r.done }}/{{ items|length }}{% else %}—{% endif %}</td>
+  <td>{% if r %}{% for key, label, hint in items %}{% if not r['items'].get(key) %}<span class="rb-chip">{{ label }}</span> {% endif %}{% endfor %}{% else %}—{% endif %}</td>
+  <td>{{ (r.note if r else '') or '—' }}</td><td>{% if r %}{{ r.updated_by_name or '—' }}<small class="subline">{{ r.sent_at or r.updated_at }}</small>{% else %}—{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

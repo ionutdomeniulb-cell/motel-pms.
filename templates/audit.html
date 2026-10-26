@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Jurnal audit · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">SECURITATE ȘI TRASABILITATE</p><h1>Jurnal de audit</h1><p class="muted">Ultimele 200 de evenimente din baza de date. Evenimentele se scriu și într-un fișier text JSON Lines în folderul logs.</p></div><a class="primary" href="{{ url_for('audit_export') }}">Descarcă jurnal TXT</a></section>
+<section class="panel"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Utilizator</th><th>Acțiune</th><th>Obiect</th><th>ID</th><th>Detalii</th><th>IP</th></tr></thead><tbody>{% for e in entries %}<tr><td>{{ e.created_at }}</td><td>{{ e.username }}</td><td>{{ e.action }}</td><td>{{ e.entity_type }}</td><td>{{ e.entity_id or '—' }}</td><td><code>{{ e.details }}</code></td><td>{{ e.ip_address }}</td></tr>{% else %}<tr><td colspan="7" class="empty">Nu există încă evenimente.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><h2>Fișier de audit</h2><p class="muted">Calea implicită: <code>logs/audit.log</code>. Fișierul este UTF-8 și poate fi deschis cu Notepad. Pentru arhivare sau control, folosiți „Descarcă jurnal TXT”; exportul este generat din jurnalul bazei de date.</p><p class="hint">Recomandare: includeți fișierul de audit în backupurile protejate și restricționați accesul la folder. Fișierul local nu este, singur, un sistem de stocare imuabil.</p></section>
+{% endblock %}

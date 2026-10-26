@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Eroare {{ code }} · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="panel error-panel"><p class="eyebrow">EROARE {{ code }}</p><h1>{{ message }}</h1>
+<p class="muted">Dacă ați ajuns aici apăsând un buton, reîncărcați pagina și încercați din nou.</p>
+<p><a class="button primary" href="{{ url_for('index') if current_user else url_for('login') }}">Înapoi</a></p></section>
+{% endblock %}

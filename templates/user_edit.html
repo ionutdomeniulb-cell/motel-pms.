@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Editare utilizator · Popas Căprioara PMS{% endblock %}
+{% block content %}
+{% set f = form or {} %}
+<section class="page-heading"><div><p class="eyebrow">ADMINISTRARE · UTILIZATORI</p><h1>Editare: {{ u.display_name }}</h1></div><a class="button secondary" href="{{ url_for('users') }}">← Înapoi</a></section>
+<form method="post" class="panel form-grid"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Utilizator<input name="username" value="{{ f.get('username', u.username) }}" required maxlength="32" autocomplete="off"></label>
+  <label>Nume afișat<input name="display_name" value="{{ f.get('display_name', u.display_name) }}" required maxlength="60"></label>
+  <label>Rol<select name="role">{% for value, label in roles %}<option value="{{ value }}" {% if f.get('role', current_role) == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>PIN nou (opțional)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" maxlength="8" autocomplete="new-password" placeholder="Lăsați gol pentru a păstra PIN-ul"></label>
+  <label class="check-row wide"><input type="checkbox" name="active" value="1" {% if (f.get('active') if form else u.active) %}checked{% endif %}> Cont activ</label>
+  {% if u.totp_enabled %}<label class="check-row wide"><input type="checkbox" name="reset_2fa" value="1"> Resetează autentificarea în 2 pași (telefon pierdut sau schimbat)</label>{% endif %}
+  <label class="check-row wide"><input type="checkbox" name="logout_all" value="1"> Deconectează-l de pe toate dispozitivele</label>
+  <p class="hint wide">Schimbarea rolului, a PIN-ului sau dezactivarea deconectează automat utilizatorul de pe toate dispozitivele.</p>
+  <div class="form-actions wide"><button class="primary" type="submit">Salvează</button></div>
+</form>
+{% endblock %}

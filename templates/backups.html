@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Copii de siguranță · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">ADMINISTRARE · COPII DE SIGURANȚĂ</p><h1>Copii automate ale bazei de date</h1>
+<p class="muted">Se face automat o copie pe zi, după ora {{ at }}, verificată pentru integritate. Se păstrează {{ keep }} de zile. Folder: <code>{{ folder }}</code></p></div>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="primary" type="submit">Fă o copie acum</button></form></section>
+<section class="panel">{% if items %}<div class="table-wrap"><table><thead><tr><th>Copie</th><th>Data</th><th>Mărime</th></tr></thead><tbody>
+{% for i in items %}<tr><td><code>{{ i.name }}</code></td><td>{{ i.time.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ '%.1f'|format(i.size / 1024) }} KB</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty compact-empty">Nu există încă nicio copie automată.</p>{% endif %}
+<p class="hint">Copiați periodic acest folder pe un disc extern criptat (BitLocker) și păstrați o copie în afara clădirii. Restaurare: opriți aplicația și înlocuiți <code>motel.db</code> cu copia dorită.</p></section>
+{% endblock %}

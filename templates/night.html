@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Recepție noapte · Popas Căprioara PMS{% endblock %}
+{% block content %}
+{% set labels = {'free':'Liberă','occupied':'Ocupată','reserved':'Rezervată','late':'Așteptat','out_of_order':'Defectă'} %}
+<section class="nd-wrap">
+  <p class="eyebrow">RECEPȚIE NOAPTE</p>
+  <h1>Noaptea de {{ night.strftime('%d.%m') }} → {{ next_day.strftime('%d.%m') }}</h1>
+  {% if not can_act %}<div class="nd-banner" role="status">Recepția de noapte este activă între {{ start }} și {{ end }}. Acum puteți doar vizualiza.</div>{% endif %}
+  <div class="nd-summary"><span class="rb-chip rb-vacant_clean">Libere <b>{{ counts.get('free', 0) }}</b></span><span class="rb-chip rb-occupied">Ocupate <b>{{ counts.get('occupied', 0) }}</b></span><span class="rb-chip">Rezervate <b>{{ counts.get('reserved', 0) + counts.get('late', 0) }}</b></span></div>
+
+  {% if late %}<section class="nd-late" id="ndLate"><h2>Sosiri după ora 21:00 · {{ late|length }}</h2>
+    {% for a in late %}<article class="nd-late-card{% if a.blocked %} is-blocked{% endif %}">
+      <div class="nd-late-head"><span class="nd-room">Camera {{ a.room_name }}</span><span class="nd-badge">{{ 'Neconfirmată' if a.status == 'unconfirmed' else 'Confirmată' }}</span></div>
+      <p class="nd-name">{{ a.guest_name }} <small>· {{ a.guests }} {{ 'persoană' if a.guests == 1 else 'persoane' }}</small></p>
+      {% if a.phone %}<a class="nd-phone" href="tel:{{ a.phone|replace(' ', '')|replace('-', '') }}">📞 {{ a.phone }}</a>{% else %}<p class="muted">Fără număr de telefon.</p>{% endif %}
+      {% if a.night_note %}<p class="nd-note"><b>Observație recepție:</b> {{ a.night_note }}</p>{% endif %}
+      {% if a.blocked %}<p class="nd-warn">⚠ Camera are altă rezervare sau este defectă. Verificați cu recepția de zi.</p>{% endif %}
+      {% if can_act %}<div class="nd-actions">
+        {% if not a.blocked %}<button class="nd-btn nd-primary" type="button" data-night-arrived data-room="{{ a.room_name }}" data-name="{{ a.guest_name }}" data-action="{{ url_for('night_arrived', booking_id=a.id) }}">A sosit · cazează</button>{% endif %}
+        <button class="nd-btn nd-danger" type="button" data-night-cancel data-room="{{ a.room_name }}" data-name="{{ a.guest_name }}" data-action="{{ url_for('night_cancel', booking_id=a.id) }}">Anulează rezervarea</button>
+      </div>{% endif %}
+    </article>{% endfor %}</section>{% endif %}
+
+  {% for b in buildings %}<section class="nd-building"><h2>{{ b.name }}</h2><div class="nd-grid">
+    {% for r in b.rooms %}
+      {% if r.state == 'free' and can_act and r.can_sell %}<button type="button" class="nd-tile nd-free" data-night-room data-room="{{ r.name }}" data-rate="{{ r.rate|lei }}" data-action="{{ url_for('night_checkin', room_id=r.room_id) }}"><b>{{ r.name }}</b><span>Liberă · apasă</span></button>
+      {% elif r.state == 'free' and not r.can_sell and can_act %}<div class="nd-tile nd-free nd-disabled"><b>{{ r.name }}</b><span>Tarif nesetat</span></div>
+      {% else %}<div class="nd-tile nd-{{ r.state }}"><b>{{ r.name }}</b><span>{{ labels[r.state] }}</span></div>{% endif %}
+    {% endfor %}</div></section>{% endfor %}
+</section>
+
+<dialog id="ndRoomDialog" class="nd-dialog" aria-labelledby="ndRoomTitle">
+  <form method="post" id="ndRoomForm"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3 id="ndRoomTitle">Camera <span data-room></span></h3><p class="muted">Tarif: <b data-rate></b> / noapte · o noapte</p>
+    <label>Numele clientului<input name="guest_name" required minlength="2" maxlength="80" autocomplete="off" placeholder="Nume și prenume"></label>
+    <label>Număr persoane în cameră *<select name="guests" required><option value="" disabled selected>Alegeți…</option><option value="1">1 persoană</option><option value="2">2 persoane</option></select></label>
+    <fieldset class="nd-pay"><legend>Plata (pentru „Cazează acum")</legend>
+      {% for key, label in payments.items() %}<label class="nd-radio"><input type="radio" name="payment" value="{{ key }}"> <span>{{ label }}</span></label>{% endfor %}</fieldset>
+    <div class="nd-dialog-actions"><button class="nd-btn nd-primary" type="submit" name="mode" value="occupy">Cazează acum</button><button class="nd-btn nd-secondary" type="submit" name="mode" value="reserve">Rezervă · vine mai târziu</button><button class="nd-btn nd-ghost" type="button" data-close-dialog>Renunță</button></div>
+    <p class="muted nd-hint">După cazare, camera nu mai poate fi modificată de la recepția de noapte.</p>
+  </form>
+</dialog>
+<dialog id="ndArrivedDialog" class="nd-dialog" aria-labelledby="ndArrivedTitle">
+  <form method="post" id="ndArrivedForm"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3 id="ndArrivedTitle">Camera <span data-room></span> · <span data-name></span></h3><p class="muted">Confirmați sosirea și alegeți plata.</p>
+    <fieldset class="nd-pay"><legend>Plata</legend>{% for key, label in payments.items() %}<label class="nd-radio"><input type="radio" name="payment" value="{{ key }}" required> <span>{{ label }}</span></label>{% endfor %}</fieldset>
+    <div class="nd-dialog-actions"><button class="nd-btn nd-primary" type="submit">Cazează</button><button class="nd-btn nd-ghost" type="button" data-close-dialog>Renunță</button></div>
+    <p class="muted nd-hint">După cazare, camera nu mai poate fi modificată de la recepția de noapte.</p>
+  </form>
+</dialog>
+<dialog id="ndCancelDialog" class="nd-dialog" aria-labelledby="ndCancelTitle">
+  <form method="post" id="ndCancelForm"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3 id="ndCancelTitle">Anulați rezervarea?</h3><p>Camera <b data-room></b> · <b data-name></b> va deveni liberă.</p>
+    <div class="nd-dialog-actions"><button class="nd-btn nd-danger" type="submit">Da, anulează</button><button class="nd-btn nd-ghost" type="button" data-close-dialog>Renunță</button></div>
+  </form>
+</dialog>
+<script src="{{ url_for('static', filename='night.js') }}?v=16" defer></script>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Curățenie extinsă · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">CURĂȚENIE EXTINSĂ · SĂPTĂMÂNA DE LA {{ week|dmy }}</p><h1>Formular săptămânal pe camere</h1>
+<p class="muted">{% if info.low_occupancy %}Azi ocuparea este redusă ({{ info.occupied }} camere ocupate): este momentul potrivit.{% else %}Azi sunt {{ info.occupied }} camere ocupate; formularul se poate completa și acum pentru camerele libere.{% endif %} Bifați ce ați făcut și trimiteți către recepție. Trimise: <b>{{ info.sent }}/{{ info.total }}</b>.</p></div>
+<a class="button secondary" href="{{ url_for('housekeeping') }}">← Înapoi la camere</a></section>
+<div class="dc-list">
+{% for row in rows %}{% set s = row.state %}{% set rep = row.report %}
+<details class="dc-room{% if rep and rep.status == 'sent' %} dc-sent{% endif %}" id="room-{{ s.room_id }}" {% if loop.first and not (rep and rep.status == 'sent') and not row.reason %}open{% endif %}>
+  <summary><b>Camera {{ s.room_name }}</b><small>{{ s.building }}</small>
+    <span class="dc-badge">{% if row.reason %}Indisponibilă: {{ row.reason }}{% elif rep and rep.status == 'sent' %}Trimis ✓ {{ rep.done }}/{{ items|length }}{% elif rep %}Ciornă {{ rep.done }}/{{ items|length }}{% else %}De făcut{% endif %}</span></summary>
+  {% if row.reason %}<p class="muted">Camera nu poate fi curățată extins acum ({{ row.reason }}).</p>
+  {% else %}<form method="post" action="{{ url_for('deep_clean_save', room_id=s.room_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="dc-items">{% for key, label, hint in items %}<label class="dc-item"><input type="checkbox" name="items" value="{{ key }}" {% if rep and rep['items'].get(key) %}checked{% endif %}><span><b>{{ label }}</b>{% if hint %}<small>{{ hint }}</small>{% endif %}</span></label>{% endfor %}</div>
+    <label>Alte aspecte / observații<textarea name="note" rows="2" maxlength="{{ note_max }}" placeholder="Ex.: pată pe covor, bec ars, perdea de spălat">{{ rep.note if rep else '' }}</textarea></label>
+    <div class="form-actions"><button class="secondary" name="action" value="save">Salvează ciorna</button><button class="primary" name="action" value="send">Trimite către recepție</button></div>
+  </form>{% endif %}
+</details>{% endfor %}
+</div>
+{% endblock %}

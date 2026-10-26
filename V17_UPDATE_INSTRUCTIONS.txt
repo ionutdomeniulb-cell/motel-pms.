@@ -1,0 +1,27 @@
+POPAS CĂPRIOARA PMS — V17 (r1) TEST
+
+IMPORTANT: arhiva nu conține motel.db, ca să nu suprascrie datele existente.
+1. Opriți versiunea veche și faceți o copie de siguranță a lui motel.db.
+2. Dezarhivați V17 într-un folder NOU (de ex. C:\PMS\v17\motel_pms_mvp).
+3. Copiați din folderul vechi motel.db și secret.key în folderul nou.
+4. În PowerShell, în folderul nou:
+     py -3.12 -m venv .venv
+     .\.venv\Scripts\Activate.ps1
+     pip install -r requirements.txt        (instalează și serverul de producție „cheroot”)
+5. Pornire:  .\porneste.ps1            (doar acest PC)
+             .\porneste.ps1 -Retea     (și telefoane din rețea)
+   La prima pornire baza trece la schema 13 (copie automată în backups). Rezervările se păstrează.
+
+LA PRIMA AUTENTIFICARE CA ADMINISTRATOR
+- Se cere configurarea autentificării în 2 pași: instalați pe telefon Google Authenticator sau Microsoft Authenticator,
+  adăugați cheia afișată, introduceți codul. Notați pe hârtie cele 8 coduri de rezervă.
+- Telefon pierdut: alt administrator → Utilizatori → Editează → „Resetează autentificarea în 2 pași”,
+  sau pe PC-ul aplicației: python manage.py reset-2fa <utilizator>
+
+NOU ÎN V17
+- Administrator → Setări: pornire/oprire pentru fiecare modul, ora reconfirmării, programul de noapte, ora copiei automate.
+- Tarife de noapte completate automat unde lipseau: Corp A 150 lei, Corp B și C 180 lei (modificabile în Camere / mentenanță).
+- Copii de siguranță automate zilnice (Rapoarte → Copii de siguranță).
+- Ceas de test: .\porneste.ps1 -CeasTest "2026-10-27 23:00"  (bandă roșie pe toate paginile; NU cu date reale).
+- Pornire automată cu Windows: .\pornire-automata.ps1 -Retea  (PowerShell ca administrator).
+Detalii: CHANGELOG.md, NOAPTE.md, SECURITY.md, MOBIL.md.

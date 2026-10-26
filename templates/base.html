@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#176a4f">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+  <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="PMS Popas">
+  <title>{% block title %}Motel PMS{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ url_for('index') }}"><span class="brand-icon">✦</span><span><b>Popas Căprioara</b><small>Management rezervări · MVP</small></span></a>
+  <nav>{% if current_user %}{% if current_user.staff_type == 'housekeeping' %}<a href="{{ url_for('housekeeping') }}">Camere și solicitări</a>{% elif current_user.staff_type == 'shift_lead' %}<a href="{{ url_for('yesterday_report') }}">Raport ocupare</a>{% elif current_user.staff_type == 'night_reception' %}<a href="{{ url_for('night_desk') }}">Recepție noapte</a>{% else %}<a href="{{ url_for('index') }}">Calendar</a><a href="{{ url_for('housekeeping') }}">Cameriste · Curățenie</a><a class="primary small" href="{{ url_for('new_booking') }}">＋ Rezervare nouă</a><a href="{{ url_for('new_group_booking') }}">Rezervare grup</a>{% if current_user.role == 'admin' %}<a href="{{ url_for('admin_settings') }}">Setări</a><a href="{{ url_for('users') }}">Utilizatori</a><a href="{{ url_for('room_maintenance') }}">Camere / mentenanță</a><a href="{{ url_for('reports') }}">Rapoarte</a><a href="{{ url_for('audit_page') }}">Audit</a>{% endif %}{% endif %}<span class="user-chip">{{ current_user.display_name }} · {{ 'Administrator' if current_user.role == 'admin' else ('Cameristă' if current_user.staff_type == 'housekeeping' else ('Șef de tură' if current_user.staff_type == 'shift_lead' else ('Recepție noapte' if current_user.staff_type == 'night_reception' else 'Recepție'))) }}</span><form class="logout-form" method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="secondary small" type="submit">Ieșire</button></form>{% endif %}</nav>
+</header>
+{% if test_clock %}<div class="test-clock" role="status">CEAS DE TEST · {{ test_clock }} · nu introduceți date reale</div>{% endif %}
+<main class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='ui.js') }}?v=16" defer></script>
+{% if current_user %}
+{% if mods.mod_alerts and current_user.staff_type not in ('shift_lead', 'night_reception') %}<div id="pmsNotify" data-endpoint="{{ url_for('notifications_feed') }}" data-updates="{{ url_for('housekeeping_updates') }}" data-user="{{ current_user['id'] }}" data-audience="{{ 'housekeeping' if current_user['staff_type'] == 'housekeeping' else 'reception' }}" data-open-url="{{ url_for('housekeeping') }}" data-sound-urgent="{{ url_for('static', filename='alert-urgent.wav') }}?v=15" data-sound-info="{{ url_for('static', filename='alert-info.wav') }}?v=15"></div>
+<script src="{{ url_for('static', filename='notify.js') }}?v=15" defer></script>
+{% endif %}
+<script nonce="{{ csp_nonce }}">
+(() => {
+  // Force a request at local midnight; the server invalidates the previous day's session.
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  window.setTimeout(() => window.location.reload(), Math.max(1000, midnight.getTime() - now.getTime()));
+})();
+</script>
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const endpoint = {{ url_for('guest_name_suggestions')|tojson }};
+  document.querySelectorAll('input[name="guest_name"][list="guest-name-suggestions"]').forEach(input => {
+    const datalist = document.getElementById('guest-name-suggestions');
+    if (!datalist) return;
+    let lastQuery = '';
+    input.addEventListener('input', async () => {
+      const query = input.value.trim();
+      if (query.length < 2 || query === lastQuery) return;
+      lastQuery = query;
+      try {
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {headers: {'Accept': 'application/json'}});
+        if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json')) return;
+        const data = await response.json();
+        datalist.replaceChildren();
+        (data.names || []).forEach(name => {
+          const option = document.createElement('option'); option.value = name; datalist.append(option);
+        });
+      } catch (_) { /* Autocomplete is optional; form entry remains available. */ }
+    });
+  });
+})();
+</script>
+{% endif %}
+<footer>Prototip MVP · Date demonstrative și funcții de bază · Nu introduceți date reale până la securizarea și publicarea controlată a aplicației. <span class="app-version" title="Versiunea aplicației">{{ app_version }}</span></footer>
+</body>
+</html>

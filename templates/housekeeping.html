@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Cameriste · Popas Căprioara PMS{% endblock %}
+{% block content %}
+{% set open_tasks = tasks|selectattr('status','equalto','open')|list %}
+{% set done_tasks = tasks|selectattr('status','equalto','done')|list %}
+{% set is_hk = current_user.staff_type == 'housekeeping' or current_user.role == 'admin' %}
+<section class="page-heading"><div><p class="eyebrow">MODUL CAMERISTE · {{ today.strftime('%d.%m.%Y') }}</p><h1>Camere și solicitări pentru astăzi</h1></div></section>
+<section class="panel" id="hkRequests"><div class="section-title"><div><h2>Solicitări de la recepție</h2></div><span class="pill{% if open_tasks %} pill-alert{% endif %}">{{ open_tasks|length }} active</span></div>
+{% if open_tasks %}<div class="housekeeping-request-list" aria-live="polite">
+{% for task in open_tasks %}<article class="housekeeping-request-card request-open">
+  <div class="request-card-heading"><div><span class="request-room">Camera {{ task.room_name }}</span><small class="subline">{{ task.building }}</small></div><time class="request-time" datetime="{{ task.created_at }}">{{ task.requested_time }}</time></div>
+  <div class="request-card-service">{{ task.request_type|service_label }}</div>
+  {% if task.note %}<p class="request-card-note">{{ task.note }}</p>{% endif %}
+  <p class="request-card-meta">Solicitat de {{ task.requested_by_name or 'Recepție' }}</p>
+  <div class="request-card-footer"><span class="status provisional">În așteptare</span>
+  {% if is_hk %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="complete_request"><input type="hidden" name="request_id" value="{{ task.id }}"><button class="primary small" type="submit">Marchează rezolvată</button></form>{% else %}<small>Așteaptă camerista</small>{% endif %}</div>
+</article>{% endfor %}</div>
+{% else %}<p class="empty compact-empty">Nu există solicitări active.</p>{% endif %}
+{% if done_tasks %}<details class="hk-details" data-persist="hk-page-done"><summary>Rezolvate azi ({{ done_tasks|length }})</summary>
+  <div class="housekeeping-request-list">{% for task in done_tasks %}<article class="housekeeping-request-card request-done">
+    <div class="request-card-heading"><div><span class="request-room">Camera {{ task.room_name }}</span><small class="subline">{{ task.building }}</small></div><time class="request-time">{{ task.requested_time }}</time></div>
+    <div class="request-card-service">{{ task.request_type|service_label }}</div>{% if task.note %}<p class="request-card-note">{{ task.note }}</p>{% endif %}
+    <p class="request-card-meta">Rezolvată{% if task.completed_by_name %} de {{ task.completed_by_name }}{% endif %}</p></article>{% endfor %}</div></details>{% endif %}
+</section>
+{% if dc.due and is_hk and mods.mod_deep_clean %}<section class="panel dc-banner"><div><b>Curățenie extinsă săptămânală</b><p>Azi ocuparea este redusă ({{ dc.occupied }} camere ocupate). Rămân {{ dc.remaining }} camere de făcut în această săptămână.</p></div><a class="button primary" href="{{ url_for('deep_clean_form') }}">Deschide formularul</a></section>{% endif %}
+<div class="legend housekeeping-legend"><span><i class="status-mark occupied-mark"></i> Ocupată / plecare azi</span><span><i class="status-mark checkout-mark"></i> Eliberată · de verificat</span><span><i class="status-mark clean-mark"></i> Curată, confirmată</span><span><i class="status-mark free-mark"></i> Liberă</span></div>
+{% for building in ['Corp A','Corp B','Corp C'] %}
+  {% set building_rooms = rooms|selectattr('building','equalto',building)|list %}
+  {% if building_rooms %}<section class="panel housekeeping-day"><h2>{{ building }}</h2><div class="housekeeping-grid">
+  {% for room in building_rooms %}
+    {% set mark = clean_map.get(room.id, {}) %}
+    {% set st = states.get(room.id) %}
+    {% set rs = st.state if st else 'vacant_to_check' %}
+    {% set released = room.departed_today or (st and st.auto_released) %}
+    <article class="housekeeping-room {% if rs == 'out_of_order' %}room-defective{% elif rs in ('occupied','departing') %}room-occupied{% elif mark.get('clean') %}room-clean{% elif released %}room-checkout{% endif %}">
+      <div class="housekeeping-room-title"><strong>{{ room.name }}</strong><span class="room-state">{% if rs == 'out_of_order' %}DEFECTĂ{% elif rs == 'occupied' %}OCUPATĂ{% elif rs == 'departing' %}PLECARE AZI{% elif mark.get('clean') %}CURATĂ ✓{% elif rs == 'arriving' %}SOSIRE AZI{% elif released %}ELIBERATĂ{% else %}DE VERIFICAT{% endif %}</span></div>
+      <p class="room-status-note">{% if rs == 'out_of_order' %}Blocată de mentenanță; nu se confirmă pentru cazare.
+        {% elif rs == 'occupied' %}Cazat · check-out {{ st.check_out|dmy }}, ora {{ st.checkout_time }}
+        {% elif rs == 'departing' %}Check-out azi până la {{ st.checkout_time }}{% if st.arrival_today %} · urmează sosire azi, de la {{ st.checkin_time }}{% endif %}
+        {% elif rs == 'arriving' %}Sosire azi, de la {{ st.checkin_time }}{% if released %} · plecarea anterioară s-a încheiat{% endif %}
+        {% elif st and st.next_arrival_date %}Următoarea sosire: {{ st.next_arrival_date|dmy }}{% else %}Nicio sosire programată{% endif %}</p>
+      {% if mark.get('clean') %}<p class="room-status-note">Confirmată curată{% if mark.get('updated_by_name') %} de {{ mark.get('updated_by_name') }}{% endif %}</p>{% endif %}
+      {% if is_hk and rs not in ('occupied','departing','out_of_order') %}<form method="post" class="clean-room"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="room_id" value="{{ room.id }}">
+        {% if mark.get('clean') %}<input type="hidden" name="is_clean" value="0"><button class="secondary small" name="action" value="mark_clean">Anulează confirmarea</button>
+        {% else %}<input type="hidden" name="is_clean" value="1"><button class="primary small" name="action" value="mark_clean">✓ Marchează curată</button>{% endif %}</form>{% endif %}
+    </article>
+  {% endfor %}</div></section>{% endif %}
+{% endfor %}
+{% if is_hk and mods.mod_deep_clean %}<p class="muted dc-link"><a href="{{ url_for('deep_clean_form') }}">Curățenie extinsă săptămânală</a> · {{ dc.sent }}/{{ dc.total }} camere trimise în această săptămână</p>{% endif %}
+{% endblock %}

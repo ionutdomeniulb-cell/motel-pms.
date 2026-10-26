@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}Configurare inițială · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="auth-wrap"><form method="post" class="panel auth-panel"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><p class="eyebrow">CONFIGURARE INIȚIALĂ</p><h1>Creează administratorul</h1><p class="muted">Se execută o singură dată, doar dacă nu există încă utilizatori. PIN-ul este stocat ca hash, nu în clar.</p><label>Nume afișat<input name="display_name" required value="Administrator"></label><label>Utilizator<input name="username" required value="admin" autocomplete="username"></label><label>PIN administrator (6–8 cifre)<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" required autocomplete="new-password"></label><label>Confirmă PIN-ul<input name="pin_confirm" type="password" inputmode="numeric" pattern="[0-9]{6,8}" required autocomplete="new-password"></label><button class="primary" type="submit">Creează contul și continuă</button></form></section>
+{% endblock %}

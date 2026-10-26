@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Raport ocupare · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="yr-wrap">
+  <p class="eyebrow">RAPORT OCUPARE</p>
+  <h1>Noaptea de {{ night.strftime('%d.%m.%Y') }} → {{ next_day.strftime('%d.%m.%Y') }}</h1>
+  <div class="yr-total"><span class="yr-number">{{ occupied }}</span><span class="yr-of">camere ocupate din {{ total }}</span><span class="yr-percent">{{ percent }}%</span></div>
+  <div class="yr-bar" role="img" aria-label="Grad de ocupare {{ percent }}%"><i style="width: {{ percent }}%"></i></div>
+  <div class="yr-money">
+    <p class="yr-money-label">Total încasări pentru noaptea aceasta</p>
+    <p class="yr-money-value">{{ revenue|lei }}</p>
+    <p class="muted">Informativ, pentru rapoarte comparative: suma tarifelor pe noapte ale celor {{ occupied }} camere ocupate.</p>
+    {% if night_desk_count %}<div class="yr-money-split"><span>Cazări la recepția de noapte: <b>{{ night_desk_count }}</b></span><span>Încasat cash: <b>{{ night_cash|lei }}</b></span><span>De încasat la recepție dimineața: <b>{{ night_morning|lei }}</b></span></div>{% endif %}
+  </div>
+  {% for b in buildings %}<div class="yr-building"><h2>{{ b.name }} <small>{{ b.occupied|length }} din {{ b.total }}</small></h2>
+    {% if b.occupied %}<div class="yr-rooms">{% for room in b.occupied %}<span class="yr-room">{{ room }}</span>{% endfor %}</div>{% else %}<p class="muted">Nicio cameră ocupată.</p>{% endif %}</div>{% endfor %}
+</section>
+{% endblock %}

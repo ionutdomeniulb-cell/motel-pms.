@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Rezervare de grup · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">GESTIONARE GRUPURI</p><h1>Rezervare de grup</h1><p class="muted">Rezervă mai multe camere într-o singură acțiune. Toate camerele sunt create în status provizoriu.</p></div><a class="secondary" href="{{ url_for('index', start=data.check_in) }}">← Înapoi la calendar</a></section>
+<form class="panel booking-form" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Date grup / persoană de contact</h2>
+  <div class="form-grid">
+    <label class="wide">Nume grup sau persoană de contact *<input name="guest_name" list="guest-name-suggestions" autocomplete="off" required value="{{ data.guest_name }}" placeholder="Nume și prenume / nume grup"><datalist id="guest-name-suggestions"></datalist><small class="field-hint">Sugestii din rezervările anterioare apar pe măsură ce tastați.</small></label>
+    <label>Telefon *<input type="tel" name="phone" required value="{{ data.phone }}" placeholder="07xx xxx xxx"></label>
+    <label>Email<input type="email" name="email" value="{{ data.email }}"></label>
+  </div>
+  <h2>Perioadă și camere</h2>
+  <div class="form-grid">
+    <label>Data sosirii *<input type="date" name="check_in" value="{{ data.check_in }}" required></label>
+    <label>Data plecării *<input type="date" name="check_out" value="{{ data.check_out }}" required></label>
+    <div class="wide room-picker-wrap">
+      <label>Camere disponibile pentru perioada selectată *</label>
+      <div id="available-room-list" class="room-checkbox-list" aria-live="polite"><p class="muted">Se verifică disponibilitatea camerelor…</p></div>
+      <small class="field-hint">Bifați fiecare cameră dorită. Camerele ocupate în intervalul selectat și camerele marcate ca defecte nu sunt afișate.</small>
+    </div>
+    <label>Persoane / cameră (obligatoriu) <span class="req" aria-hidden="true">*</span><select name="guests" required><option value="" disabled {% if not data.guests %}selected{% endif %}>Alegeți…</option><option value="1" {% if data.guests|string == '1' %}selected{% endif %}>1 persoană</option><option value="2" {% if data.guests|string == '2' %}selected{% endif %}>2 persoane</option></select><small class="field-hint">Câmp obligatoriu. Maximum 2 persoane per cameră.</small></label>
+    <label>Sursa rezervării<select name="source">{% for s in ['Direct','Telefon','WhatsApp','Website','Booking.com','Expedia','Altă platformă','Agenție'] %}<option {% if data.source==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  </div>
+  <h2>Tarif și avans</h2>
+  <div class="form-grid">
+    <label>Tarif / cameră / noapte (lei) *<input type="number" name="rate" min="0.01" step="0.01" value="{{ data.rate }}" required></label>
+    <label>Avans / cameră (lei)<input type="number" name="deposit" min="0" step="0.01" value="{{ data.deposit }}" required></label>
+    <label class="wide">Observații<textarea name="notes" rows="3">{{ data.notes }}</textarea></label>
+  </div>
+  <div class="form-note"><span>ℹ️</span><p><b>Rezervare de grup provizorie</b><br>După creare, deschideți o cameră din grup și introduceți numărul chitanței. La salvare puteți alege să aplicați chitanța și confirmarea întregului grup.</p></div>
+  <div class="form-actions"><a class="secondary" href="{{ url_for('index', start=data.check_in) }}">Renunță</a><button class="primary" type="submit">Creează grup provizoriu</button></div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+(() => {
+  const startInput = document.querySelector('input[name="check_in"]');
+  const endInput = document.querySelector('input[name="check_out"]');
+  const list = document.getElementById('available-room-list');
+  const form = document.querySelector('form.booking-form');
+  const selectedAtLoad = {{ data.room_ids|tojson }};
+  const availabilityUrl = {{ url_for('available_rooms')|tojson }};
+  let firstLoad = true;
+
+  async function refreshRooms() {
+    list.replaceChildren();
+    if (!startInput.value || !endInput.value || endInput.value <= startInput.value) {
+      list.textContent = 'Selectați o perioadă validă pentru a vedea camerele disponibile.';
+      return;
+    }
+    list.textContent = 'Se verifică disponibilitatea camerelor…';
+    try {
+      const url = `${availabilityUrl}?start=${encodeURIComponent(startInput.value)}&end=${encodeURIComponent(endInput.value)}`;
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(response.status === 401 || response.redirected ? 'Sesiunea a expirat. Autentificați-vă din nou și reîncărcați formularul.' : `Serverul a răspuns cu eroarea ${response.status}. Reîncărcați pagina.`);
+      }
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Eroare server (${response.status}).`);
+      list.replaceChildren();
+      if (!Array.isArray(payload.rooms) || payload.rooms.length === 0) {
+        list.textContent = 'Nu există camere disponibile pentru perioada selectată.';
+        firstLoad = false;
+        return;
+      }
+      const buildingOrder = ['Corp A', 'Corp B', 'Corp C'];
+      buildingOrder.forEach(building => {
+        const buildingRooms = payload.rooms.filter(room => room.building === building);
+        if (!buildingRooms.length) return;
+        const section = document.createElement('section');
+        section.className = 'available-building-section';
+        const heading = document.createElement('h3');
+        heading.textContent = `${building} · ${buildingRooms.length} camere disponibile`;
+        section.append(heading);
+        const grid = document.createElement('div');
+        grid.className = 'available-building-grid';
+        buildingRooms.forEach(room => {
+          const label = document.createElement('label');
+          label.className = 'room-checkbox-item';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox'; checkbox.name = 'room_ids'; checkbox.value = room.id;
+          checkbox.checked = firstLoad && selectedAtLoad.map(String).includes(String(room.id));
+          const text = document.createElement('span');
+          text.textContent = `Camera ${room.name} · ${room.bed_configuration} · ${room.bathroom_type}`;
+          label.append(checkbox, text); grid.append(label);
+        });
+        section.append(grid); list.append(section);
+      });
+      firstLoad = false;
+    } catch (error) {
+      list.replaceChildren();
+      const message = document.createElement('p');
+      message.className = 'field-error';
+      message.textContent = error.message || 'Eroare la verificarea camerelor. Reîncărcați pagina.';
+      list.append(message);
+    }
+  }
+  startInput.addEventListener('change', refreshRooms);
+  endInput.addEventListener('change', refreshRooms);
+  form.addEventListener('submit', event => {
+    if (!list.querySelector('input[name="room_ids"]:checked')) {
+      event.preventDefault(); alert('Bifați cel puțin o cameră disponibilă pentru perioada selectată.');
+    }
+  });
+  refreshRooms();
+})();
+</script>
+{% endblock %}

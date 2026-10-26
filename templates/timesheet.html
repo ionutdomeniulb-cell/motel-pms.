@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Pontaj cameriste · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">ADMINISTRARE · PONTAJ CAMERISTE</p><h1>{{ day.strftime('%d.%m.%Y') }}</h1>
+<p class="muted">Cât timp au fost conectate cameristele în aplicație. „Interval total” = de la prima autentificare până la ultima activitate; „Timp conectat” numără doar perioadele active (pauzele de peste 10 minute nu se adună).</p></div>
+<div class="date-nav"><a class="button secondary" href="{{ url_for('timesheet_page', date=prev_day) }}">← Ziua anterioară</a>{% if not is_today %}<a class="button secondary" href="{{ url_for('timesheet_page', date=next_day) }}">Ziua următoare →</a>{% endif %}
+<a class="button secondary" href="{{ url_for('timesheet_csv', year=day.year, month=day.month) }}">Descarcă luna (CSV)</a></div></section>
+<section class="panel"><h2>Ziua selectată</h2>
+{% if rows %}<div class="table-wrap"><table><thead><tr><th>Cameristă</th><th>Prima autentificare</th><th>Ultima activitate</th><th>Interval total</th><th>Timp conectat</th><th>Perioade</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><b>{{ r.name }}</b></td><td>{{ r.first }}</td><td>{{ r.last }}</td><td>{{ r.span }}</td><td><b>{{ r.connected }}</b></td><td>{{ r.periods }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="empty compact-empty">Nicio cameristă nu s-a conectat în această zi.</p>{% endif %}</section>
+<section class="panel"><h2>Săptămâna {{ week_days[0].strftime('%d.%m') }} – {{ week_days[6].strftime('%d.%m') }} · timp conectat</h2>
+{% if week_rows %}<div class="table-wrap"><table><thead><tr><th>Cameristă</th>{% for d in week_days %}<th>{{ ['L','Ma','Mi','J','V','S','D'][loop.index0] }} {{ d.strftime('%d') }}</th>{% endfor %}<th>Total</th></tr></thead><tbody>
+{% for r in week_rows %}<tr><td><b>{{ r.name }}</b></td>{% for d in week_days %}<td>{{ r.day_labels.get(d.isoformat(), '—') }}</td>{% endfor %}<td><b>{{ r.total_label }}</b></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="empty compact-empty">Nicio activitate în această săptămână.</p>{% endif %}
+<p class="hint">Se înregistrează doar orele de conectare ale cameristelor în aplicație. Informați personalul despre această evidență.</p></section>
+{% endblock %}

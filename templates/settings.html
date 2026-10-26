@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Setări · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">ADMINISTRARE · SETĂRI</p><h1>Module și ore</h1>
+<p class="muted">Un modul oprit dispare din pagini și nu mai funcționează. Modificările se aplică imediat pentru toți utilizatorii și se înregistrează în jurnalul de audit.</p></div>
+<a class="button secondary" href="{{ url_for('admin_backups') }}">Copii de siguranță</a></section>
+<form method="post" class="settings-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <section class="panel"><h2>Module</h2>
+    {% for key, title, desc, default in modules %}<label class="switch-row"><input type="checkbox" name="{{ key }}" value="1" {% if state[key] %}checked{% endif %}><span><b>{{ title }}</b><small>{{ desc }}</small></span></label>{% endfor %}
+  </section>
+  <section class="panel"><h2>Ore</h2><div class="form-grid">
+    {% for key, title, value in time_rows %}<label>{{ title }}<input type="time" name="{{ key }}" value="{{ value }}" required></label>{% endfor %}
+    {% for key, title, value, lo, hi in number_rows %}<label>{{ title }}<input type="number" name="{{ key }}" value="{{ value }}" min="{{ lo }}" max="{{ hi }}" required></label>{% endfor %}
+  </div></section>
+  <div class="form-actions"><button class="primary" type="submit">Salvează setările</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Rapoarte · Popas Căprioara PMS{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">DOAR ADMINISTRATOR</p><h1>Rapoarte și ocupare</h1><p class="muted">{% if mods.mod_shift_report %}<a href="{{ url_for('yesterday_report') }}">Raportul pentru șeful de tură</a> · {% endif %}{% if mods.mod_timesheet %}<a href="{{ url_for('timesheet_page') }}">Pontaj cameriste</a> · {% endif %}{% if mods.mod_night_desk %}<a href="{{ url_for('night_desk') }}">Recepție noapte</a> · {% endif %}<a href="{{ url_for('admin_backups') }}">Copii de siguranță</a></p><p class="muted">Raportare pe nopți de cazare. Sunt incluse rezervările confirmate, cazate sau plecate; provizoriile, neconfirmatele și anulatele nu sunt considerate camere vândute.</p></div></section>
+<section class="panel">
+  <form method="get" class="date-nav report-filters">
+    <label>De la <input type="date" name="start" value="{{ start_date.isoformat() }}" required></label>
+    <label>Până la (inclusiv) <input type="date" name="end" value="{{ end_date.isoformat() }}" required></label>
+    <button class="primary" type="submit" formaction="{{ url_for('reports_export') }}">Descarcă raport Excel (.xlsx) cu grafice</button><button class="secondary" type="submit" formaction="{{ url_for('reports_export_csv') }}">Descarcă CSV pentru Excel</button><button class="secondary" type="submit">Afișează statisticile</button>
+  </form>
+  <p class="hint">Raportul include rezumatul, situația pe corpuri și detaliul pe camere. Dacă exportul .xlsx întâmpină o problemă tehnică, aplicația oferă automat un CSV compatibil cu Excel; puteți folosi și butonul CSV separat.</p>
+</section>
+<section class="stats report-stats">
+  <article class="stat"><span>Grad de ocupare</span><strong>{{ '%.1f'|format(occupancy) }}%</strong><small>pentru întreaga perioadă</small></article>
+  <article class="stat"><span>Nopți vândute</span><strong>{{ sold_nights }}</strong><small>din {{ capacity_nights }} nopți disponibile</small></article>
+  <article class="stat"><span>Camere vândute</span><strong>{{ rooms_sold }}</strong><small>camere cu cel puțin o noapte vândută</small></article>
+  <article class="stat"><span>Rezervări active în perioadă</span><strong>{{ overlapping_bookings }}</strong><small>rezervări care se intersectează cu perioada</small></article>
+  <article class="stat"><span>Venit estimat din cazare</span><strong>{{ estimated_revenue|money }}</strong><small>lei, pe baza tarifului × nopți</small></article>
+</section>
+<section class="panel"><div class="section-title"><div><h2>Rezumat pe corp</h2><p class="muted">Comparație între clădiri</p></div></div><div class="table-wrap"><table><thead><tr><th>Corp</th><th>Camere active</th><th>Nopți vândute</th><th>Grad ocupare</th><th>Rezervări</th><th>Venit estimat (lei)</th></tr></thead><tbody>{% for b in building_stats %}<tr><td><b>{{ b.building }}</b></td><td>{{ b.room_count }}</td><td>{{ b.sold_nights }}</td><td><div class="occupancy-cell"><span>{{ '%.1f'|format(b.occupancy) }}%</span><div class="occupancy-track"><i style="width:{{ [b.occupancy, 100]|min }}%"></i></div></div></td><td>{{ b.bookings }}</td><td>{{ b.revenue|money }}</td></tr>{% else %}<tr><td colspan="6" class="empty">Nu există date pentru perioada selectată.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="panel"><div class="section-title"><div><h2>Detaliu pe cameră</h2><p class="muted">Nopți ocupate și venit estimat pentru fiecare cameră</p></div></div><div class="table-wrap"><table><thead><tr><th>Corp</th><th>Cameră</th><th>Stare</th><th>Nopți vândute</th><th>Grad ocupare</th><th>Rezervări</th><th>Venit estimat (lei)</th></tr></thead><tbody>{% for r in room_stats %}<tr><td>{{ r.building }}</td><td><b>{{ r.room_name }}</b></td><td>{% if r.out_of_order %}<span class="status unconfirmed">Defectă</span>{% else %}<span class="status confirmed">Disponibilă</span>{% endif %}</td><td>{{ r.sold_nights }}</td><td><div class="occupancy-cell"><span>{{ '%.1f'|format(r.occupancy) }}%</span><div class="occupancy-track"><i style="width:{{ [r.occupancy, 100]|min }}%"></i></div></div></td><td>{{ r.bookings }}</td><td>{{ r.revenue|money }}</td></tr>{% endfor %}</tbody></table></div><p class="hint">Camerele marcate ca defecte sunt excluse din capacitatea disponibilă. Dacă există rezervări anterioare pe o cameră defectă, verificați și realocați-le; acestea pot influența ocuparea raportată.</p></section>
+{% endblock %}
